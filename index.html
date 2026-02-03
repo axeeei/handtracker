@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Flow | Hand Tracking Universe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Space+Grotesk:wght@300;400;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body { 
+            font-family: 'Space Grotesk', sans-serif;
+            background: #000;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        
+        .font-cosmic { font-family: 'Cinzel', serif; }
+        
+        /* Cosmic Gradients */
+        .cosmic-gradient {
+            background: linear-gradient(135deg, #0c0c1d 0%, #1a1a3e 50%, #0d1b2a 100%);
+        }
+        
+        .nebula-gradient {
+            background: radial-gradient(ellipse at center, rgba(138, 43, 226, 0.2) 0%, transparent 70%);
+        }
+        
+        .aurora-gradient {
+            background: linear-gradient(180deg, rgba(0, 255, 150, 0.1) 0%, transparent 50%, rgba(150, 0, 255, 0.1) 100%);
+        }
+        
+        /* Intro Animation */
+        #intro-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .warp-star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: warp 5s ease-out forwards;
+        }
+        
+        @keyframes warp {
+            0% {
+                transform: translateZ(0) scale(0);
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateZ(1000px) scale(3);
+                opacity: 0;
+            }
+        }
+        
+        .intro-text {
+            font-size: 4rem;
+            font-weight: 800;
+            background: linear-gradient(45deg, #fff, #a78bfa, #60a5fa, #fff);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s ease-in-out infinite, fadeOut 0.5s ease-out 4.5s forwards;
+            text-align: center;
+            z-index: 10;
+        }
+        
+        @keyframes shimmer {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        @keyframes fadeOut {
+            to { opacity: 0; transform: scale(1.1); }
+        }
+        
+        .intro-subtext {
+            font-size: 1.2rem;
+            color: #94a3b8;
+            margin-top: 1rem;
+            letter-spacing: 0.3em;
+            animation: fadeOut 0.5s ease-out 4.5s forwards;
+        }
+        
+        /* Page Layout */
+        .page-container {
+            min-height: 100vh;
+            width: 100%;
+            position: relative;
+        }
+        
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            background: rgba(12, 12, 29, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        nav.scrolled {
+            background: rgba(12, 12, 29, 0.95);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .nav-link {
+            position: relative;
+            color: #94a3b8;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: #fbbf24;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #fbbf24, #a78bfa);
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after, .nav-link.active::after {
+            width: 100%;
+        }
+        
+        /* Hero Section */
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 120px 20px 80px;
+            overflow: hidden;
+        }
+        
+        .hero-content {
+            text-align: center;
+            max-width: 900px;
+            z-index: 10;
+        }
+        
+        .hero-title {
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #fff 0%, #a78bfa 30%, #60a5fa 60%, #fbbf24 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: titleFloat 6s ease-in-out infinite;
+        }
+        
+        @keyframes titleFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: #cbd5e1;
+            margin-bottom: 3rem;
+            line-height: 1.8;
+            font-weight: 300;
+        }
+        
+        /* Buttons */
+        .cosmic-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(96, 165, 250, 0.2));
+            border: 1px solid rgba(167, 139, 250, 0.4);
+            color: #fff;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            border-radius: 50px;
+            transition: all 0.4s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .cosmic-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .cosmic-btn:hover::before {
+            left: 100%;
+        }
+        
+        .cosmic-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 40px rgba(167, 139, 250, 0.3);
+            border-color: rgba(167, 139, 250, 0.8);
+        }
+        
+        .cosmic-btn-primary {
+            background: linear-gradient(135deg, #a78bfa, #60a5fa);
+            border: none;
+        }
+        
+        .cosmic-btn-primary:hover {
+            box-shadow: 0 20px 40px rgba(96, 165, 250, 0.4);
+        }
+        
+        /* Features Section */
+        .features-section {
+            padding: 100px 20px;
+            position: relative;
+        }
+        
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 4rem;
+            color: #fff;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 40px;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: rgba(167, 139, 250, 0.3);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(96, 165, 250, 0.2));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            border: 1px solid rgba(167, 139, 250, 0.3);
+        }
+        
+        /* Experience Pages */
+        .experience-page {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            background: #000;
+        }
+        
+        .experience-page.active {
+            display: block;
+        }
+        
+        .experience-ui {
+            position: absolute;
+            top: 100px;
+            left: 30px;
+            max-width: 320px;
+            z-index: 60;
+            background: rgba(12, 12, 29, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 24px;
+        }
+        
+        /* Video Container */
+        #video-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 280px;
+            height: 210px;
+            z-index: 60;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.6);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+        
+        #video-container:hover {
+            transform: scale(1.05);
+            border-color: rgba(167, 139, 250, 0.5);
+        }
+        
+        #input_video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+        
+        .video-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #fbbf24;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+        }
+        
+        /* Canvas */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        /* About Page */
+        .about-section {
+            padding: 150px 20px 100px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .creator-card {
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(96, 165, 250, 0.1));
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            border-radius: 30px;
+            padding: 60px;
+            text-align: center;
+            margin-top: 60px;
+        }
+        
+        .avatar {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #a78bfa, #60a5fa);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            box-shadow: 0 20px 60px rgba(167, 139, 250, 0.3);
+        }
+        
+        /* Footer */
+        footer {
+            padding: 40px 20px;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            color: #64748b;
+        }
+        
+        .telegram-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #60a5fa;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .telegram-link:hover {
+            color: #fbbf24;
+            transform: translateY(-2px);
+        }
+        
+        /* Scroll Reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease;
+        }
+        
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Mobile Menu */
+        .mobile-menu {
+            display: none;
+            position: fixed;
+            top: 70px;
+            left: 0;
+            width: 100%;
+            background: rgba(12, 12, 29, 0.98);
+            padding: 20px;
+            z-index: 99;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .mobile-menu.active {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .desktop-nav { display: none; }
+            .mobile-toggle { display: block !important; }
+            .experience-ui { 
+                top: 80px; 
+                left: 10px; 
+                right: 10px; 
+                max-width: none;
+            }
+            #video-container {
+                width: 200px;
+                height: 150px;
+                bottom: 20px;
+                right: 20px;
+            }
+        }
+    </style>
+</head>
+<body class="cosmic-gradient">
+
+    <!-- 5-Second Intro Animation -->
+    <div id="intro-screen">
+        <div id="warp-container" style="position: absolute; width: 100%; height: 100%; perspective: 1000px;"></div>
+        <h1 class="intro-text font-cosmic">COSMIC FLOW</h1>
+        <p class="intro-subtext">ENTER THE UNIVERSE</p>
+    </div>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="font-cosmic text-2xl font-bold text-white tracking-wider">
+                COSMIC<span class="text-amber-400">FLOW</span>
+            </div>
+            
+            <div class="desktop-nav hidden md:flex items-center gap-8">
+                <button onclick="showPage('home')" class="nav-link active" data-page="home">Home</button>
+                <button onclick="showPage('nebula')" class="nav-link" data-page="nebula">Nebula</button>
+                <button onclick="showPage('aurora')" class="nav-link" data-page="aurora">Aurora</button>
+                <button onclick="showPage('stardust')" class="nav-link" data-page="stardust">Stardust</button>
+                <button onclick="showPage('about')" class="nav-link" data-page="about">About</button>
+            </div>
+            
+            <button class="mobile-toggle md:hidden text-white" onclick="toggleMobileMenu()">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu" id="mobileMenu">
+        <div class="flex flex-col gap-4">
+            <button onclick="showPage('home')" class="nav-link text-left py-2">Home</button>
+            <button onclick="showPage('nebula')" class="nav-link text-left py-2">Nebula</button>
+            <button onclick="showPage('aurora')" class="nav-link text-left py-2">Aurora</button>
+            <button onclick="showPage('stardust')" class="nav-link text-left py-2">Stardust</button>
+            <button onclick="showPage('about')" class="nav-link text-left py-2">About</button>
+        </div>
+    </div>
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- Video Preview -->
+    <div id="video-container" style="display: none;">
+        <video id="input_video" playsinline></video>
+        <div class="video-label">● LIVE</div>
+    </div>
+
+    <!-- HOME PAGE -->
+    <div id="home" class="page-container">
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="nebula-gradient absolute inset-0"></div>
+            <div class="aurora-gradient absolute inset-0"></div>
+            
+            <div class="hero-content">
+                <h1 class="hero-title font-cosmic">Paint the Cosmos</h1>
+                <p class="hero-subtitle">
+                    Transform your movements into celestial art. Experience the universe at your fingertips 
+                    with AI-powered hand tracking that turns gestures into flowing nebulas, dancing auroras, 
+                    and scattering stardust.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="requestCameraAccess()" class="cosmic-btn cosmic-btn-primary">
+                        <span>Begin Journey</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                        </svg>
+                    </button>
+                    <button onclick="scrollToFeatures()" class="cosmic-btn">
+                        <span>Explore More</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features-section" id="features">
+            <div class="container mx-auto max-w-6xl">
+                <h2 class="section-title font-cosmic reveal">Three Cosmic Realms</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="feature-card reveal">
+                        <div class="feature-icon">🌌</div>
+                        <h3 class="text-xl font-bold mb-3 text-purple-300">Nebula Trails</h3>
+                        <p class="text-gray-400 leading-relaxed">
+                            Create swirling clouds of cosmic gas and dust. Your fingers become stars 
+                            birthing new galaxies with every movement.
+                        </p>
+                    </div>
+                    
+                    <div class="feature-card reveal" style="transition-delay: 0.1s;">
+                        <div class="feature-icon">🌠</div>
+                        <h3 class="text-xl font-bold mb-3 text-blue-300">Aurora Dance</h3>
+                        <p class="text-gray-400 leading-relaxed">
+                            Paint the skies with electromagnetic poetry. Flowing ribbons of light 
+                            that shimmer and wave like the northern lights.
+                        </p>
+                    </div>
+                    
+                    <div class="feature-card reveal" style="transition-delay: 0.2s;">
+                        <div class="feature-icon">✨</div>
+                        <h3 class="text-xl font-bold mb-3 text-amber-300">Stardust</h3>
+                        <p class="text-gray-400 leading-relaxed">
+                            Scatter the building blocks of the universe. Thousands of particles 
+                            that respond to your touch, creating constellations.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works -->
+        <section class="features-section" style="background: rgba(0,0,0,0.3);">
+            <div class="container mx-auto max-w-4xl text-center">
+                <h2 class="section-title font-cosmic reveal">How It Works</h2>
+                
+                <div class="space-y-12">
+                    <div class="flex flex-col md:flex-row items-center gap-8 reveal">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-2xl font-bold shrink-0">1</div>
+                        <div class="text-left">
+                            <h3 class="text-xl font-bold mb-2 text-white">Grant Camera Access</h3>
+                            <p class="text-gray-400">Our AI needs to see your hands to track their movement in 3D space. All processing happens locally in your browser.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col md:flex-row items-center gap-8 reveal">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-2xl font-bold shrink-0">2</div>
+                        <div class="text-left">
+                            <h3 class="text-xl font-bold mb-2 text-white">Move Your Hands</h3>
+                            <p class="text-gray-400">Raise your hands in front of the camera. Our system tracks 21 points on each hand in real-time.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col md:flex-row items-center gap-8 reveal">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-amber-500 flex items-center justify-center text-2xl font-bold shrink-0">3</div>
+                        <div class="text-left">
+                            <h3 class="text-xl font-bold mb-2 text-white">Create Art</h3>
+                            <p class="text-gray-400">Watch as your fingertips leave trails of cosmic light. Pinch your fingers to change colors and effects.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <p class="mb-2">Created with 💫 by <span class="text-amber-400 font-semibold">kaaxhunter</span></p>
+            <a href="https://t.me/kaaxhunter" target="_blank" class="telegram-link">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.623 4.823-4.351c.192-.192-.054-.3-.297-.108l-5.965 3.759-2.568-.802c-.56-.176-.571-.56.117-.828l10.037-3.869c.466-.174.875.108.713.827z"/>
+                </svg>
+                Contact on Telegram
+            </a>
+        </footer>
+    </div>
+
+    <!-- NEBULA PAGE -->
+    <div id="nebula" class="experience-page">
+        <div class="experience-ui">
+            <h2 class="font-cosmic text-2xl text-purple-300 mb-2">Nebula Trails</h2>
+            <p class="text-gray-400 text-sm mb-4">Create swirling cosmic clouds with your fingertips.</p>
+            <div class="space-y-2 text-xs text-gray-500">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
+                    <span>Move slowly for dense clouds</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
+                    <span>Pinch to shift colors</span>
+                </div>
+            </div>
+            <button onclick="showPage('home')" class="cosmic-btn mt-4 w-full justify-center text-sm py-2">
+                ← Return Home
+            </button>
+        </div>
+    </div>
+
+    <!-- AURORA PAGE -->
+    <div id="aurora" class="experience-page">
+        <div class="experience-ui">
+            <h2 class="font-cosmic text-2xl text-cyan-300 mb-2">Aurora Dance</h2>
+            <p class="text-gray-400 text-sm mb-4">Paint flowing ribbons of northern lights.</p>
+            <div class="space-y-2 text-xs text-gray-500">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
+                    <span>Wave hands for flowing ribbons</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span>Speed affects ribbon width</span>
+                </div>
+            </div>
+            <button onclick="showPage('home')" class="cosmic-btn mt-4 w-full justify-center text-sm py-2">
+                ← Return Home
+            </button>
+        </div>
+    </div>
+
+    <!-- STARDUST PAGE -->
+    <div id="stardust" class="experience-page">
+        <div class="experience-ui">
+            <h2 class="font-cosmic text-2xl text-amber-300 mb-2">Stardust</h2>
+            <p class="text-gray-400 text-sm mb-4">Scatter golden particles to form constellations.</p>
+            <div class="space-y-2 text-xs text-gray-500">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>
+                    <span>Flick fingers to scatter dust</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                    <span>Hold still to gather stars</span>
+                </div>
+            </div>
+            <button onclick="showPage('home')" class="cosmic-btn mt-4 w-full justify-center text-sm py-2">
+                ← Return Home
+            </button>
+        </div>
+    </div>
+
+    <!-- ABOUT PAGE -->
+    <div id="about" class="page-container" style="display: none;">
+        <div class="about-section">
+            <h1 class="font-cosmic text-5xl md:text-6xl font-bold text-center mb-8 bg-gradient-to-r from-purple-300 via-blue-300 to-amber-300 bg-clip-text text-transparent">
+                About Cosmic Flow
+            </h1>
+            
+            <div class="space-y-8 text-gray-300 leading-relaxed text-lg">
+                <p class="reveal">
+                    Cosmic Flow is an interactive web experience that bridges the gap between human movement 
+                    and digital art. Using advanced computer vision technology, we transform your hand gestures 
+                    into beautiful cosmic phenomena — from swirling nebulas to dancing auroras.
+                </p>
+                
+                <p class="reveal">
+                    The project explores the poetry of motion, allowing anyone to become a creator of 
+                    celestial art. No controllers, no keyboards — just you and the universe, connected 
+                    through the camera lens.
+                </p>
+            </div>
+
+            <div class="creator-card reveal">
+                <div class="avatar">🚀</div>
+                <h2 class="font-cosmic text-3xl font-bold text-white mb-2">kaaxhunter</h2>
+                <p class="text-purple-300 mb-4">Creator & Creative Developer</p>
+                <p class="text-gray-400 mb-6 max-w-md mx-auto">
+                    Building bridges between technology and art. Passionate about interactive experiences 
+                    that make the digital world feel magical.
+                </p>
+                <a href="https://t.me/kaaxhunter" target="_blank" class="cosmic-btn cosmic-btn-primary">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.623 4.823-4.351c.192-.192-.054-.3-.297-.108l-5.965 3.759-2.568-.802c-.56-.176-.571-.56.117-.828l10.037-3.869c.466-.174.875.108.713.827z"/>
+                    </svg>
+                    <span>Message on Telegram</span>
+                </a>
+            </div>
+
+            <div class="mt-12 text-center reveal">
+                <button onclick="showPage('home')" class="cosmic-btn">
+                    ← Back to Home
+                </button>
+            </div>
+        </div>
+
+        <footer>
+            <p>© 2026 Cosmic Flow. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Global Variables
+        let scene, camera, renderer;
+        let handPoints = [];
+        let nebulaParticles = [];
+        let auroraRibbons = [];
+        let stardustSystems = [];
+        let currentMode = 'nebula';
+        let handDetected = false;
+        let cameraUtils = null;
+        let hands = null;
+        let introComplete = false;
+        
+        const FINGER_TIPS = [8, 12, 16, 20];
+        
+        // Initialize
+        window.onload = function() {
+            createWarpEffect();
+            initThree();
+            
+            // Hide intro after 5 seconds
+            setTimeout(() => {
+                document.getElementById('intro-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('intro-screen').style.display = 'none';
+                    introComplete = true;
+                }, 500);
+            }, 5000);
+            
+            // Scroll observer
+            setupScrollObserver();
+            
+            // Navbar scroll effect
+            window.addEventListener('scroll', () => {
+                const nav = document.getElementById('navbar');
+                if(window.scrollY > 50) {
+                    nav.classList.add('scrolled');
+                } else {
+                    nav.classList.remove('scrolled');
+                }
+            });
+        };
+
+        // Warp Speed Intro Effect
+        function createWarpEffect() {
+            const container = document.getElementById('warp-container');
+            const starCount = 200;
+            
+            for(let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.className = 'warp-star';
+                
+                const size = Math.random() * 3 + 1;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 2 + 's';
+                star.style.animationDuration = (Math.random() * 2 + 3) + 's';
+                
+                container.appendChild(star);
+            }
+        }
+
+        // Scroll Observer for Reveal Animations
+        function setupScrollObserver() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if(entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                    }
+                });
+            }, { threshold: 0.1 });
+            
+            document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        }
+
+        function scrollToFeatures() {
+            document.getElementById('features').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Page Navigation
+        function showPage(pageName) {
+            // Hide all pages
+            document.querySelectorAll('.page-container').forEach(page => {
+                page.style.display = 'none';
+            });
+            document.querySelectorAll('.experience-page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Show selected page
+            if(pageName === 'home') {
+                document.getElementById('home').style.display = 'block';
+                document.getElementById('video-container').style.display = 'none';
+                setMode('idle');
+            } else if(pageName === 'about') {
+                document.getElementById('about').style.display = 'block';
+                document.getElementById('video-container').style.display = 'none';
+                setMode('idle');
+            } else {
+                document.getElementById(pageName).classList.add('active');
+                document.getElementById('video-container').style.display = 'block';
+                setMode(pageName);
+            }
+            
+            // Update nav
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if(link.dataset.page === pageName) {
+                    link.classList.add('active');
+                }
+            });
+            
+            // Close mobile menu
+            document.getElementById('mobileMenu').classList.remove('active');
+            
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+
+        function toggleMobileMenu() {
+            document.getElementById('mobileMenu').classList.toggle('active');
+        }
+
+        // Camera Permission
+        async function requestCameraAccess() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop());
+                showPage('nebula');
+                initHandTracking();
+            } catch(err) {
+                alert('Please allow camera access to experience Cosmic Flow.');
+            }
+        }
+
+        // Set Animation Mode
+        function setMode(mode) {
+            currentMode = mode;
+            
+            // Hide all effects
+            nebulaParticles.forEach(p => {
+                p.system.visible = false;
+                p.history = [];
+            });
+            auroraRibbons.forEach(r => {
+                r.mesh.visible = false;
+                r.history = [];
+            });
+            stardustSystems.forEach(s => {
+                s.system.visible = false;
+            });
+            
+            // Show relevant effects
+            if(mode === 'nebula') {
+                nebulaParticles.forEach(p => p.system.visible = true);
+            } else if(mode === 'aurora') {
+                auroraRibbons.forEach(r => r.mesh.visible = true);
+            } else if(mode === 'stardust') {
+                stardustSystems.forEach(s => s.system.visible = true);
+            }
+        }
+
+        // Three.js Initialization
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0c0c1d, 0.02);
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+            
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404080, 1.5);
+            scene.add(ambientLight);
+            
+            // Point lights (stars)
+            const colors = [0xa78bfa, 0x60a5fa, 0xfbbf24, 0xc084fc];
+            colors.forEach((color, i) => {
+                const light = new THREE.PointLight(color, 0.8, 15);
+                light.position.set(
+                    Math.sin(i * Math.PI / 2) * 4,
+                    Math.cos(i * Math.PI / 2) * 4,
+                    3
+                );
+                scene.add(light);
+            });
+            
+            // Hand tracking points
+            for(let i = 0; i < 21; i++) {
+                const geometry = new THREE.SphereGeometry(0.02, 16, 16);
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.4
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.visible = false;
+                scene.add(sphere);
+                handPoints.push(sphere);
+            }
+            
+            // Initialize Nebula Particles
+            FINGER_TIPS.forEach((tipIndex, i) => {
+                const particleCount = 200;
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+                const sizes = new Float32Array(particleCount);
+                
+                const color = new THREE.Color();
+                color.setHSL(0.7 + i * 0.05, 0.8, 0.6);
+                
+                for(let j = 0; j < particleCount; j++) {
+                    positions[j * 3] = 0;
+                    positions[j * 3 + 1] = 0;
+                    positions[j * 3 + 2] = 0;
+                    colors[j * 3] = color.r;
+                    colors[j * 3 + 1] = color.g;
+                    colors[j * 3 + 2] = color.b;
+                    sizes[j] = Math.random() * 0.2 + 0.1;
+                }
+                
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                
+                const material = new THREE.PointsMaterial({
+                    size: 0.2,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending,
+                    sizeAttenuation: true
+                });
+                
+                const particleSystem = new THREE.Points(geometry, material);
+                particleSystem.visible = false;
+                scene.add(particleSystem);
+                
+                nebulaParticles.push({
+                    system: particleSystem,
+                    positions: positions,
+                    colors: colors,
+                    history: [],
+                    fingerIndex: tipIndex,
+                    baseColor: color.clone()
+                });
+            });
+            
+            // Initialize Aurora Ribbons
+            FINGER_TIPS.forEach((tipIndex, i) => {
+                const ribbonGeometry = new THREE.PlaneGeometry(0.4, 1, 1, 40);
+                const ribbonMaterial = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color().setHSL(0.5 + i * 0.05, 0.9, 0.6),
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.6,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const ribbon = new THREE.Mesh(ribbonGeometry, ribbonMaterial);
+                ribbon.visible = false;
+                scene.add(ribbon);
+                
+                auroraRibbons.push({
+                    mesh: ribbon,
+                    fingerIndex: tipIndex,
+                    history: [],
+                    color: new THREE.Color().setHSL(0.5 + i * 0.05, 0.9, 0.6)
+                });
+            });
+            
+            // Initialize Stardust
+            FINGER_TIPS.forEach((tipIndex, i) => {
+                const dustCount = 100;
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(dustCount * 3);
+                const velocities = [];
+                
+                for(let j = 0; j < dustCount; j++) {
+                    positions[j * 3] = 0;
+                    positions[j * 3 + 1] = 0;
+                    positions[j * 3 + 2] = 0;
+                    velocities.push({
+                        x: (Math.random() - 0.5) * 0.1,
+                        y: (Math.random() - 0.5) * 0.1,
+                        z: (Math.random() - 0.5) * 0.1
+                    });
+                }
+                
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                
+                const material = new THREE.PointsMaterial({
+                    color: 0xfbbf24,
+                    size: 0.15,
+                    transparent: true,
+                    opacity: 0.9,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const dust = new THREE.Points(geometry, material);
+                dust.visible = false;
+                scene.add(dust);
+                
+                stardustSystems.push({
+                    system: dust,
+                    positions: positions,
+                    velocities: velocities,
+                    fingerIndex: tipIndex,
+                    origin: { x: 0, y: 0, z: 0 }
+                });
+            });
+            
+            // Background stars
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsCount = 2000;
+            const starsPositions = new Float32Array(starsCount * 3);
+            const starsColors = new Float32Array(starsCount * 3);
+            
+            for(let i = 0; i < starsCount; i++) {
+                starsPositions[i * 3] = (Math.random() - 0.5) * 100;
+                starsPositions[i * 3 + 1] = (Math.random() - 0.5) * 100;
+                starsPositions[i * 3 + 2] = (Math.random() - 0.5) * 100;
+                
+                const starColor = new THREE.Color();
+                starColor.setHSL(Math.random() * 0.2 + 0.5, 0.5, Math.random() * 0.5 + 0.5);
+                starsColors[i * 3] = starColor.r;
+                starsColors[i * 3 + 1] = starColor.g;
+                starsColors[i * 3 + 2] = starColor.b;
+            }
+            
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(starsPositions, 3));
+            starsGeometry.setAttribute('color', new THREE.BufferAttribute(starsColors, 3));
+            
+            const starsMaterial = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+            
+            animate();
+        }
+
+        // Hand Tracking
+        function initHandTracking() {
+            const videoElement = document.getElementById('input_video');
+            
+            hands = new Hands({locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }});
+            
+            hands.setOptions({
+                maxNumHands: 2,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            
+            hands.onResults((results) => {
+                if(results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    handDetected = true;
+                    updateHandData(results.multiHandLandmarks[0]);
+                } else {
+                    handDetected = false;
+                    handPoints.forEach(point => point.visible = false);
+                }
+            });
+            
+            cameraUtils = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({image: videoElement});
+                },
+                width: 320,
+                height: 240
+            });
+            
+            cameraUtils.start();
+        }
+
+        function updateHandData(landmarks) {
+            landmarks.forEach((landmark, i) => {
+                const x = (landmark.x - 0.5) * 8;
+                const y = -(landmark.y - 0.5) * 6;
+                const z = -landmark.z * 2;
+                
+                handPoints[i].position.set(x, y, z);
+                handPoints[i].visible = true;
+            });
+            
+            if(currentMode === 'nebula') updateNebula(landmarks);
+            else if(currentMode === 'aurora') updateAurora(landmarks);
+            else if(currentMode === 'stardust') updateStardust(landmarks);
+        }
+
+        // Nebula Effect
+        function updateNebula(landmarks) {
+            nebulaParticles.forEach((particle, i) => {
+                const tip = landmarks[particle.fingerIndex];
+                const x = (tip.x - 0.5) * 8;
+                const y = -(tip.y - 0.5) * 6;
+                const z = -tip.z * 2;
+                
+                particle.history.unshift({ x, y, z });
+                if(particle.history.length > 200) particle.history.pop();
+                
+                const positions = particle.positions;
+                const colors = particle.colors;
+                
+                for(let j = 0; j < 200; j++) {
+                    if(j < particle.history.length) {
+                        const point = particle.history[j];
+                        const fade = 1 - (j / particle.history.length);
+                        const spread = 0.1 * fade;
+                        
+                        positions[j * 3] = point.x + (Math.random() - 0.5) * spread;
+                        positions[j * 3 + 1] = point.y + (Math.random() - 0.5) * spread;
+                        positions[j * 3 + 2] = point.z + (Math.random() - 0.5) * spread;
+                        
+                        const hue = (0.7 + i * 0.05 + j * 0.002) % 1;
+                        const color = new THREE.Color().setHSL(hue, 0.8, 0.6 * fade);
+                        colors[j * 3] = color.r;
+                        colors[j * 3 + 1] = color.g;
+                        colors[j * 3 + 2] = color.b;
+                    }
+                }
+                
+                particle.system.geometry.attributes.position.needsUpdate = true;
+                particle.system.geometry.attributes.color.needsUpdate = true;
+            });
+        }
+
+        // Aurora Effect
+        function updateAurora(landmarks) {
+            auroraRibbons.forEach((ribbon, i) => {
+                const tip = landmarks[ribbon.fingerIndex];
+                const x = (tip.x - 0.5) * 8;
+                const y = -(tip.y - 0.5) * 6;
+                const z = -tip.z * 2;
+                
+                ribbon.history.unshift({ x, y, z });
+                if(ribbon.history.length > 40) ribbon.history.pop();
+                
+                if(ribbon.history.length > 2) {
+                    const positions = [];
+                    
+                    for(let j = 0; j < ribbon.history.length - 1; j++) {
+                        const point = ribbon.history[j];
+                        const nextPoint = ribbon.history[j + 1];
+                        
+                        const dx = nextPoint.x - point.x;
+                        const dy = nextPoint.y - point.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) + 0.001;
+                        const width = 0.2 * (1 - j / ribbon.history.length);
+                        
+                        const perpX = -dy / dist * width;
+                        const perpY = dx / dist * width;
+                        
+                        positions.push(
+                            point.x + perpX, point.y + perpY, point.z,
+                            point.x - perpX, point.y - perpY, point.z
+                        );
+                    }
+                    
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                    
+                    ribbon.mesh.geometry.dispose();
+                    ribbon.mesh.geometry = geometry;
+                    
+                    const hue = (0.5 + i * 0.05 + Date.now() * 0.0002) % 1;
+                    ribbon.mesh.material.color.setHSL(hue, 0.9, 0.6);
+                }
+            });
+        }
+
+        // Stardust Effect
+        function updateStardust(landmarks) {
+            stardustSystems.forEach((dust, i) => {
+                const tip = landmarks[dust.fingerIndex];
+                const x = (tip.x - 0.5) * 8;
+                const y = -(tip.y - 0.5) * 6;
+                const z = -tip.z * 2;
+                
+                // Update origin
+                dust.origin = { x, y, z };
+                
+                const positions = dust.positions;
+                
+                for(let j = 0; j < 100; j++) {
+                    let px = positions[j * 3];
+                    let py = positions[j * 3 + 1];
+                    let pz = positions[j * 3 + 2];
+                    
+                    // Apply velocity
+                    px += dust.velocities[j].x;
+                    py += dust.velocities[j].y;
+                    pz += dust.velocities[j].z;
+                    
+                    // Reset if too far
+                    const dist = Math.sqrt((px - x)**2 + (py - y)**2 + (pz - z)**2);
+                    if(dist > 3) {
+                        px = x + (Math.random() - 0.5) * 0.5;
+                        py = y + (Math.random() - 0.5) * 0.5;
+                        pz = z + (Math.random() - 0.5) * 0.5;
+                        dust.velocities[j] = {
+                            x: (Math.random() - 0.5) * 0.1,
+                            y: (Math.random() - 0.5) * 0.1,
+                            z: (Math.random() - 0.5) * 0.1
+                        };
+                    }
+                    
+                    positions[j * 3] = px;
+                    positions[j * 3 + 1] = py;
+                    positions[j * 3 + 2] = pz;
+                }
+                
+                dust.system.geometry.attributes.position.needsUpdate = true;
+            });
+        }
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Slow rotation
+            scene.rotation.y += 0.0002;
+            scene.rotation.x += 0.0001;
+            
+            renderer.render(scene, camera);
+        }
+
+        // Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
